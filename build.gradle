@@ -40,7 +40,7 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
     implementation ("com.squareup.retrofit2:converter-gson:3.0.0")
     // local entity library
-    implementation('com.prajwal:entity-service:0.0.6-SNAPSHOT')
+    implementation('com.prajwal:entity-service:0.0.7-SNAPSHOT')
 
     // Source: https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-netflix-eureka-client
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")

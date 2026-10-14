@@ -1,4 +1,4 @@
-package com.prajwal.bookingservice.controllers;
+package com.prajwal.bookingservice.configs;
 
 import com.netflix.discovery.EurekaClient;
 import com.prajwal.bookingservice.apis.LocationServiceAPI;
