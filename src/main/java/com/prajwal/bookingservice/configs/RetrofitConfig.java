@@ -1,6 +1,7 @@
 package com.prajwal.bookingservice.configs;
 
 import com.netflix.discovery.EurekaClient;
+import com.prajwal.bookingservice.apis.ClientSocKetServiceAPI;
 import com.prajwal.bookingservice.apis.LocationServiceAPI;
 import okhttp3.OkHttpClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,5 +27,14 @@ public class RetrofitConfig {
                 .addConverterFactory(GsonConverterFactory.create())
                 .client(new OkHttpClient.Builder().build())
                 .build().create(LocationServiceAPI.class);
+    }
+
+
+    @Bean
+    public ClientSocKetServiceAPI clientSocKetServiceAPI() {
+        return new Retrofit.Builder().baseUrl(getServiceUrl("client-socket-service"))
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(new OkHttpClient.Builder().build())
+                .build().create(ClientSocKetServiceAPI.class);
     }
 }

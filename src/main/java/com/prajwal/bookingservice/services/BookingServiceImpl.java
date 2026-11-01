@@ -1,5 +1,6 @@
 package com.prajwal.bookingservice.services;
 
+import com.prajwal.bookingservice.apis.ClientSocKetServiceAPI;
 import com.prajwal.bookingservice.apis.LocationServiceAPI;
 import com.prajwal.bookingservice.dtos.*;
 import com.prajwal.bookingservice.repositories.BookingRepository;
@@ -9,13 +10,13 @@ import com.prajwal.entityservice.models.Booking;
 import com.prajwal.entityservice.models.BookingStatus;
 import com.prajwal.entityservice.models.Driver;
 import com.prajwal.entityservice.models.Passenger;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,7 @@ public class BookingServiceImpl implements BookingService {
     //private static final String LOCATION_SERVICE = "http://localhost:7477";
 
     private final LocationServiceAPI locationServiceAPI;
+    private final ClientSocKetServiceAPI clientSocKetServiceAPI;
 
     private final PassengerRepository passengerRepository;
     private final BookingRepository bookingRepository;
@@ -36,11 +38,12 @@ public class BookingServiceImpl implements BookingService {
 
     public BookingServiceImpl(PassengerRepository passengerRepository,
                               BookingRepository bookingRepository,
-                              LocationServiceAPI locationServiceAPI,
+                              LocationServiceAPI locationServiceAPI, ClientSocKetServiceAPI clientSocKetServiceAPI,
                               DriverRepository driverRepository) {
 
         this.passengerRepository = passengerRepository;
         this.bookingRepository = bookingRepository;
+        this.clientSocKetServiceAPI = clientSocKetServiceAPI;
         this.restTemplate = new RestTemplate();
         this.locationServiceAPI = locationServiceAPI;
         this.driverRepository = driverRepository;
@@ -59,15 +62,15 @@ public class BookingServiceImpl implements BookingService {
 
         // making api call to locationService to fetch nearby  drivers
 
-
+        System.out.println("booking created");
         NearbyDriversRequestDto request = NearbyDriversRequestDto.builder()
                 .latitude(bookingDetails.getStartLocation().getLatitude())
                 .longitude(bookingDetails.getStartLocation().getLongitude())
                 .build();
-
+        System.out.println("making async call using retrofit");
         // making async call using retrofit
-        processNearByDriversAsync(request);
-
+        processNearByDriversAsync(request, bookingDetails.getPassengerId());
+        System.out.println("nearby drivers processed");
 //        ResponseEntity<DriverLocationDto[]> results = restTemplate.
 //                postForEntity(
 //                        LOCATION_SERVICE + "/api/v1/location/nearby/drivers",
@@ -106,31 +109,66 @@ public class BookingServiceImpl implements BookingService {
                 .build();
     }
 
-    private void processNearByDriversAsync(NearbyDriversRequestDto requestDto) {
+    private void processNearByDriversAsync(NearbyDriversRequestDto requestDto, Long passengerId) {
         Call<DriverLocationDto[]> call = locationServiceAPI.getNearbyDrivers(requestDto);
-
+        System.out.println("inside processNearByDrivers");
         call.enqueue(new Callback<DriverLocationDto[]>() {
             @Override
             public void onResponse(Call<DriverLocationDto[]> call, Response<DriverLocationDto[]> response) {
-                if (!response.isSuccessful() || response.body() == null) {
-                    String error = "";
-                    try {
-                        if (response.errorBody() != null) {
-                            error = response.errorBody().string();
-                        }
-                    } catch (IOException ignored) {
-                    }
-                    System.out.println("Location service returned " + response.code() + " " + error);
-                    return;
+                System.out.println("========== LOCATION SERVICE DEBUG ==========");
+                System.out.println("Request URL: " + call.request().url());
+                System.out.println("HTTP Status: " + response.code());
+                System.out.println("HTTP Message: " + response.message());
+                System.out.println("Successful: " + response.isSuccessful());
+                if (response.isSuccessful() && response.body() != null) {
+                    System.out.println("response successfull");
+                    List<DriverLocationDto> driverLocations = Arrays.asList(response.body());
+                    driverLocations.forEach(d ->
+                            System.out.println(d.getDriverId() + " " + d.getLatitude() + " " + d.getLongitude()));
+
+                    System.out.println("ALL NEARBY DRIVERS FETCHED");
+                    raiseNewRideRequestAsync(RideRequestDto.builder()
+                            .passengerId(passengerId)
+                            .build());
+
+
+                } else {
+                    System.out.println("Request Failed " + response.message());
+
                 }
 
-                List<DriverLocationDto> driverLocations = Arrays.asList(response.body());
-                driverLocations.forEach(d ->
-                        System.out.println(d.getDriverId() + " " + d.getLatitude() + " " + d.getLongitude()));
             }
 
             @Override
             public void onFailure(Call<DriverLocationDto[]> call, Throwable t) {
+                t.printStackTrace();
+            }
+        });
+    }
+
+    private void raiseNewRideRequestAsync(RideRequestDto rideRequestDto) {
+        Call<String> call = clientSocKetServiceAPI.getNearbyDrivers(rideRequestDto);
+        call.enqueue(new Callback<String>() {
+
+            @Override
+            public void onResponse(Call<String> call, Response<String> response) {
+                System.out.println("========== CLIENT SOCKET DEBUG ==========");
+                System.out.println("Request URL: " + call.request().url());
+                System.out.println("HTTP Status: " + response.code());
+                System.out.println("Successful: " + response.isSuccessful());
+                if (response.isSuccessful() && response.body() != null) {
+                    String result = response.body();
+                    System.out.println("Driver respoonse is : " + result);
+
+                } else {
+                    System.out.println("Request Failed " + response.message());
+
+                }
+
+            }
+
+            @Override
+            public void onFailure(Call<String> call, Throwable t) {
                 t.printStackTrace();
             }
         });
